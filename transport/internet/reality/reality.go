@@ -114,6 +114,30 @@ func (c *UConn) VerifyPeerCertificate(rawCerts [][]byte, verifiedChains [][]*x50
 	return nil
 }
 
+// releaseHandshakeState drops the handshake material uTLS keeps on the connection
+// once the handshake is over. uTLS exposes the state for inspection and never frees
+// it, so every established connection holds its ClientHello, the transcript hash and
+// the key share private keys for as long as it lives. With a post-quantum group in
+// the fingerprint that is tens of kilobytes per connection: on a client that fans a
+// download out over a few hundred connections it is the single largest heap class,
+// and none of it is reachable by the collector while the connection is open.
+//
+// Nothing reads the state after HandshakeContext returns: post-handshake messages
+// (session tickets, key updates) work off Conn, and REALITY has already derived its
+// AuthKey from the key share before the handshake starts. The state is kept when
+// Show is set so that debugging still sees it.
+func releaseHandshakeState(c *utls.UConn) {
+	if c == nil {
+		return
+	}
+	c.HandshakeState.Hello = nil
+	c.HandshakeState.ServerHello = nil
+	c.HandshakeState.Session = nil
+	c.HandshakeState.MasterSecret = nil
+	c.HandshakeState.State12 = utls.TLS12OnlyState{}
+	c.HandshakeState.State13 = utls.TLS13OnlyState{}
+}
+
 func UClient(c net.Conn, config *Config, ctx context.Context, dest net.Destination) (net.Conn, error) {
 	localAddr := c.LocalAddr().String()
 	uConn := &UConn{
@@ -179,6 +203,8 @@ func UClient(c net.Conn, config *Config, ctx context.Context, dest net.Destinati
 	}
 	if config.Show {
 		fmt.Printf("REALITY localAddr: %v\tuConn.Verified: %v\n", localAddr, uConn.Verified)
+	} else {
+		releaseHandshakeState(uConn.UConn)
 	}
 	if !uConn.Verified {
 		errors.LogError(ctx, "REALITY: received real certificate (potential MITM or redirection)")
