@@ -19,7 +19,6 @@ import (
 	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/features/routing"
 	"github.com/xtls/xray-core/proxy"
-	"github.com/xtls/xray-core/proxy/http"
 	"github.com/xtls/xray-core/transport"
 	"github.com/xtls/xray-core/transport/internet/stat"
 	"github.com/xtls/xray-core/transport/internet/udp"
@@ -30,7 +29,6 @@ type Server struct {
 	config        *ServerConfig
 	policyManager policy.Manager
 	cone          bool
-	httpServer    *http.Server
 }
 
 // NewServer creates a new Server object.
@@ -41,13 +39,6 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 		policyManager: v.GetFeature(policy.ManagerType()).(policy.Manager),
 		cone:          ctx.Value("cone").(bool),
 	}
-	httpConfig := &http.ServerConfig{
-		UserLevel: config.UserLevel,
-	}
-	if config.AuthType == AuthType_PASSWORD {
-		httpConfig.Accounts = config.Accounts
-	}
-	s.httpServer, _ = http.NewServer(ctx, httpConfig)
 	return s, nil
 }
 
@@ -85,8 +76,7 @@ func (s *Server) Process(ctx context.Context, network net.Network, conn stat.Con
 			return errors.New("failed to read from connection").Base(err)
 		}
 		if firstbyte[0] != 5 && firstbyte[0] != 4 { // Check if it is Socks5/4/4a
-			errors.LogDebug(ctx, "Not Socks request, try to parse as HTTP request")
-			return s.httpServer.ProcessWithFirstbyte(ctx, network, conn, dispatcher, firstbyte...)
+			return errors.New("not a SOCKS request")
 		}
 		return s.processTCP(ctx, conn, dispatcher, firstbyte)
 	default:
