@@ -200,7 +200,7 @@ func Listen(ctx context.Context, address net.Address, port net.Port, streamSetti
 		return nil, errors.New("tls config is nil")
 	}
 
-	validator := ValidatorFromContext(ctx)
+	validator := account.ValidatorFromContext(ctx)
 	config := streamSettings.ProtocolSettings.(*Config)
 
 	if validator == nil && config.Auth == "" {

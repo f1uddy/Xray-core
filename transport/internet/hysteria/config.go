@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/xtls/xray-core/common"
-	"github.com/xtls/xray-core/proxy/hysteria/account"
 	"github.com/xtls/xray-core/transport/internet"
 )
 
@@ -59,17 +58,6 @@ func ContextWithDatagram(ctx context.Context, v bool) context.Context {
 
 func DatagramFromContext(ctx context.Context) bool {
 	v, _ := ctx.Value(datagramKey{}).(bool)
-	return v
-}
-
-type validatorKey struct{}
-
-func ContextWithValidator(ctx context.Context, v *account.Validator) context.Context {
-	return context.WithValue(ctx, validatorKey{}, v)
-}
-
-func ValidatorFromContext(ctx context.Context) *account.Validator {
-	v, _ := ctx.Value(validatorKey{}).(*account.Validator)
 	return v
 }
 
